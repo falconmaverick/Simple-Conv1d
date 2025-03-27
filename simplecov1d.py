@@ -1,15 +1,12 @@
 import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
 
 class SimpleConv1d:
     def __init__(self, input_channels, output_channels, filter_size, padding=0, stride=1):
-        """
-        Problem 1 & 7: Initializes the 1D Convolution layer with multiple channels, optional padding, and variable stride.
-        - input_channels: Number of input channels.
-        - output_channels: Number of output channels.
-        - filter_size: Size of the filter (kernel) used in the convolution.
-        - padding: Number of zeros to pad on both sides of the input.
-        - stride: Step size for moving the filter during convolution.
-        """
         self.C_in = input_channels  # Number of input channels
         self.C_out = output_channels  # Number of output channels
         self.F = filter_size  # Filter size
@@ -21,11 +18,6 @@ class SimpleConv1d:
         self.b = np.random.randn(self.C_out) * np.sqrt(1 / (self.C_in * self.F))
     
     def forward(self, x):
-        """
-        Problem 2, 6 & 7: Forward propagation for 1D convolution with multiple channels, padding, mini-batches, and stride.
-        - x: Input array with shape (batch_size, C_in, N_in).
-        Returns the convolved output with shape (batch_size, C_out, N_out).
-        """
         self.x = x  # Store input for backpropagation
         batch_size, _, N_in = x.shape
         
@@ -44,12 +36,6 @@ class SimpleConv1d:
         return self.a
     
     def backward(self, delta_a, learning_rate=0.01):
-        """
-        Problem 3, 6 & 7: Backpropagation to compute gradients and update weights for mini-batches and stride.
-        - delta_a: Gradient of the loss with respect to output of this layer, shape (batch_size, C_out, N_out).
-        - learning_rate: Learning rate for weight updates.
-        Returns the gradient with respect to the input (delta_x).
-        """
         batch_size, _, N_out = delta_a.shape
         _, _, N_in = self.x.shape
         
@@ -73,27 +59,9 @@ class SimpleConv1d:
         return delta_x
     
     def get_parameters(self):
-        """
-        Problem 8: Retrieve current weights and biases for integration into a neural network.
-        Returns:
-        - W: Weight array (C_out, C_in, F)
-        - b: Bias term (C_out)
-        """
         return self.W, self.b
     
     def integrate_with_mnist(self, model, train_loader, test_loader, num_epochs=10, learning_rate=0.01):
-        """
-        Problem 8: Train and evaluate the model using the MNIST dataset.
-        - model: Neural network model with Conv1d layers replacing some fully connected layers.
-        - train_loader: Training dataset loader.
-        - test_loader: Test dataset loader.
-        - num_epochs: Number of training epochs.
-        - learning_rate: Learning rate for optimization.
-        """
-        import torch
-        import torch.nn as nn
-        import torch.optim as optim
-        
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
         
@@ -124,3 +92,32 @@ class SimpleConv1d:
             print(f"Epoch {epoch+1}, Loss: {running_loss:.4f}, Accuracy: {accuracy:.2f}%")
         
         print("Training and evaluation complete. Final Accuracy: {:.2f}%".format(accuracy))
+        return accuracy
+
+# Example usage
+if __name__ == "__main__":
+    # Load MNIST dataset
+    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+    train_dataset = datasets.MNIST(root="./data", train=True, transform=transform, download=True)
+    test_dataset = datasets.MNIST(root="./data", train=False, transform=transform, download=True)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    
+    # Define a simple model using nn.Conv1d
+    class SimpleModel(nn.Module):
+        def __init__(self):
+            super(SimpleModel, self).__init__()
+            self.conv1 = nn.Conv1d(in_channels=1, out_channels=10, kernel_size=5, stride=1, padding=2)
+            self.fc1 = nn.Linear(10 * 28, 10)  # MNIST image size flattened after Conv1d
+        
+        def forward(self, x):
+            x = torch.relu(self.conv1(x))
+            x = x.view(x.size(0), -1)
+            x = self.fc1(x)
+            return x
+    
+    model = SimpleModel()
+    conv1d_layer = SimpleConv1d(input_channels=1, output_channels=10, filter_size=5, padding=2, stride=1)
+    
+    # Train and evaluate
+    conv1d_layer.integrate_with_mnist(model, train_loader, test_loader)
