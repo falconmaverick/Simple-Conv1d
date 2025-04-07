@@ -105,16 +105,20 @@ if __name__ == "__main__":
     
     # Define a simple model using nn.Conv1d
     class SimpleModel(nn.Module):
-        def __init__(self):
-            super(SimpleModel, self).__init__()
-            self.conv1 = nn.Conv1d(in_channels=1, out_channels=10, kernel_size=5, stride=1, padding=2)
-            self.fc1 = nn.Linear(10 * 28, 10)  # MNIST image size flattened after Conv1d
-        
-        def forward(self, x):
-            x = torch.relu(self.conv1(x))
-            x = x.view(x.size(0), -1)
-            x = self.fc1(x)
-            return x
+    def __init__(self):
+        super(SimpleModel, self).__init__()
+        self.conv1 = nn.Conv1d(in_channels=1, out_channels=10, kernel_size=5, stride=1, padding=2)
+        # The output size after the Conv1d layer is (batch_size, out_channels, (input_size + 2*padding - kernel_size)/stride + 1)
+        # In this case, it's (batch_size, 10, (784 + 2*2 - 5)/1 + 1) = (batch_size, 10, 784)
+        # After flattening, it becomes (batch_size, 10*784) = (batch_size, 7840)
+        # So the input size of the fully connected layer should be 7840
+        self.fc1 = nn.Linear(10 * 784, 10)  # Adjust input size to match flattened Conv1d output
+    
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = x.view(x.size(0), -1) # Flatten the output for the fully connected layer
+        x = self.fc1(x)
+        return x
     
     model = SimpleModel()
     conv1d_layer = SimpleConv1d(input_channels=1, output_channels=10, filter_size=5, padding=2, stride=1)
